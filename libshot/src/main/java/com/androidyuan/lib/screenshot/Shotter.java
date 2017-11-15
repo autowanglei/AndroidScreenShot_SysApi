@@ -28,30 +28,25 @@ import java.lang.ref.SoftReference;
 import java.nio.ByteBuffer;
 
 /**
- * Created by wei on 16-12-1.
+ * @author wanglei
+ * @date 2017/11/16 13:43
+ * @description 完全透明 只是用于弹出权限申请的窗
  */
 public class Shotter {
 
     private final SoftReference<Context> mRefContext;
     private ImageReader mImageReader;
-
     private MediaProjection mMediaProjection;
     private VirtualDisplay mVirtualDisplay;
-
-    private String mLocalUrl = "";
-
     private OnShotListener mOnShotListener;
+    private String screenShotPath;
 
 
-    public Shotter(Context context, Intent data) {
+    public Shotter( Context context, Intent data, String screenShotPath ) {
         this.mRefContext = new SoftReference<>(context);
-
+        this.screenShotPath = screenShotPath;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-
-
-            mMediaProjection = getMediaProjectionManager().getMediaProjection(Activity.RESULT_OK,
-                    data);
-
+            mMediaProjection = getMediaProjectionManager().getMediaProjection(Activity.RESULT_OK, data);
             mImageReader = ImageReader.newInstance(
                     getScreenWidth(),
                     getScreenHeight(),
@@ -60,10 +55,8 @@ public class Shotter {
         }
     }
 
-
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     private void virtualDisplay() {
-
         mVirtualDisplay = mMediaProjection.createVirtualDisplay("screen-mirror",
                 getScreenWidth(),
                 getScreenHeight(),
@@ -73,44 +66,29 @@ public class Shotter {
 
     }
 
-    public void startScreenShot(OnShotListener onShotListener, String loc_url) {
-        mLocalUrl = loc_url;
-        startScreenShot(onShotListener);
-    }
-
-
     @TargetApi(Build.VERSION_CODES.KITKAT)
-    public void startScreenShot(OnShotListener onShotListener) {
-
+    public void startScreenShot( OnShotListener onShotListener ) {
         mOnShotListener = onShotListener;
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-
             virtualDisplay();
-
             Handler handler = new Handler();
-
-            handler.postDelayed(new Runnable() {
-                                    @Override
-                                    public void run() {
-
-                                        Image image = mImageReader.acquireLatestImage();
-
-                                        AsyncTaskCompat.executeParallel(new SaveTask(), image);
-                                    }
-                                },
+            handler.postDelayed(
+                    new Runnable() {
+                        @Override
+                        public void run() {
+                            Image image = mImageReader.acquireLatestImage();
+                            AsyncTaskCompat.executeParallel(new SaveTask(), image);
+                        }
+                    },
                     300);
-
         }
-
     }
-
 
     public class SaveTask extends AsyncTask<Image, Void, Bitmap> {
 
         @TargetApi(Build.VERSION_CODES.KITKAT)
         @Override
-        protected Bitmap doInBackground(Image... params) {
+        protected Bitmap doInBackground( Image... params ) {
 
             if (params == null || params.length < 1 || params[0] == null) {
 
@@ -118,7 +96,6 @@ public class Shotter {
             }
 
             Image image = params[0];
-
             int width = image.getWidth();
             int height = image.getHeight();
             final Image.Plane[] planes = image.getPlanes();
@@ -136,16 +113,11 @@ public class Shotter {
             File fileImage = null;
             if (bitmap != null) {
                 try {
-
-                    if (TextUtils.isEmpty(mLocalUrl)) {
-                        mLocalUrl = getContext().getExternalFilesDir("screenshot").getAbsoluteFile()
-                                +
-                                "/"
-                                +
-                                SystemClock.currentThreadTimeMillis() + ".png";
+                    if (TextUtils.isEmpty(screenShotPath)) {
+                        screenShotPath = getContext().getExternalFilesDir("screenshot").getAbsoluteFile()
+                                + "/" + SystemClock.currentThreadTimeMillis() + ".png";
                     }
-                    fileImage = new File(mLocalUrl);
-
+                    fileImage = new File(screenShotPath);
                     if (!fileImage.exists()) {
                         fileImage.createNewFile();
                     }
@@ -173,7 +145,7 @@ public class Shotter {
 
         @TargetApi(Build.VERSION_CODES.KITKAT)
         @Override
-        protected void onPostExecute(Bitmap bitmap) {
+        protected void onPostExecute( Bitmap bitmap ) {
             super.onPostExecute(bitmap);
 
             if (bitmap != null && !bitmap.isRecycled()) {
@@ -185,15 +157,12 @@ public class Shotter {
             }
 
             if (mOnShotListener != null) {
-                mOnShotListener.onFinish();
+                mOnShotListener.onFinish(screenShotPath);
             }
-
         }
     }
 
-
     private MediaProjectionManager getMediaProjectionManager() {
-
         return (MediaProjectionManager) getContext().getSystemService(
                 Context.MEDIA_PROJECTION_SERVICE);
     }
@@ -212,8 +181,10 @@ public class Shotter {
     }
 
 
-    // a  call back listener
+    /**
+     * a  call back listener
+     */
     public interface OnShotListener {
-        void onFinish();
+        void onFinish( String screenShotPath );
     }
 }
